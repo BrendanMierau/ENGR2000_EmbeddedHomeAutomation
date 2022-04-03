@@ -34,6 +34,11 @@ Timer alarm_timer;
 bool alarm_trigger = false;
 int alarm_iterator = 0;
 
+//For water sensor
+AnalogIn w_sensor(p20);
+float water_value;
+
+
 void alarm(){
     if(alarm_trigger && (alarm_timer.read() > 0.5) && (alarm_iterator < 12)){
         pc.printf("alarm trigger true \n\r");
@@ -104,36 +109,50 @@ void smart_heating(){
     }
 }
 
+void flood_detector(){
+    water_value = w_sensor;
+    
+    if(water_value > 0.05){
+        alarm_trigger = true;
+    }
+}
+
+
 int main() {
     pir_timer.start();
     temp_timer.start();
     alarm_timer.start();
     heating_timer.start();
-    
-    pc.printf("\r\n--Starting--\r\n");
     /*
     This might be the only wait statement in the code.
     I am thinking that we might do a 60 second wait for bootup
     for the final implementation
     */
-     
+    pc.printf("\r\n--Starting--\r\n");
     wait(20); //Wait for sensor to take snap shot of still room 
     led1 = 0;
     heater_led = 0;
     aircon_led = 0;
     buzzer = 0.5;
     
-    pc.printf("\r\n--Starting--\r\n");
+    //For the water sensor
+
+    
+    
     if (ds1820.begin()){
         while(1) {
             pir_sensor();
             smart_heating();
             alarm();
+            flood_detector();
+            water_value = w_sensor;
+            pc.printf("Value of potentiometer is %f \n\r", water_value);
         }
     }
     else
         pc.printf("No DS1820 sensor found!\r\n");
 }
+
 
 
 

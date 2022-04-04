@@ -208,12 +208,14 @@ void garage_door_opener(){
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc == 100){
+    if(garage_inc == 100)
         garage_door_led = 1;
-        garage_mode = 1; //Closed
-    }
+    else if(garage_inc == 0);
+        garage_door_led = 0;
+        garage_mode = 0;
     else
         garage_door_led = 0;
+        
 }
 
 int main() {

@@ -179,7 +179,7 @@ void garage_door_opener(){
     ultrasonic_distance = usensor.get_dist_cm();
     pc.printf("Distance = %ld cm\r\n", ultrasonic_distance);
     
-    if((ultrasonic_distance < 50) && (garage_mode == 1))
+    if((ultrasonic_distance < 50) && (garage_mode == 3))
         garage_mode = 0; //switches mode to opening
     
     /*
@@ -188,7 +188,7 @@ void garage_door_opener(){
     Checks timer so it can increment every 0.1 seconds
     Checks garage inc to simulate the servo motor going in increments of 1
     */
-    if((garage_mode == 0) && (garage_timer > 0.1) && (garage_inc < 100)){
+    if((garage_mode == 2) && (garage_timer > 0.1) && (garage_inc < 100)){
         garage_inc++;
         garage_opening_led = !garage_opening_led;
         garage_closing_led = 0;
@@ -200,7 +200,7 @@ void garage_door_opener(){
     Checks timer so it can increment every 0.1 seconds
     Checks garage inc to simulate the servo motor going in increments of 1
     */ 
-    else if((garage_mode == 1) && (garage_timer > 0.1) && (garage_inc > 0)){
+    else if((garage_mode == 3) && (garage_timer > 0.1) && (garage_inc > 0)){
         garage_inc--;
         garage_opening_led = 0;
         garage_closing_led = !garage_closing_led;
@@ -210,6 +210,7 @@ void garage_door_opener(){
     //This led just shows if the door is open or closed
     if(garage_inc == 100)
         garage_door_led = 1;
+        garage_mode = 1;
     else if(garage_inc == 0);
         garage_door_led = 0;
         garage_mode = 0;

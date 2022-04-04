@@ -28,8 +28,10 @@ int garage_mode;
 Timer garage_timer;
 int garage_inc;
 /*
-Mode 0: opening
-Mode 1: closing
+Mode 0: open
+Mode 1: closed
+Mode 2: opening
+Mode 3: closing
 */
 
 //For the PIR Motion sensor
@@ -206,11 +208,12 @@ void garage_door_opener(){
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc == 100)
+    if(garage_inc == 100){
         garage_door_led = 1;
+        garage_mode = 1; //Closed
+    }
     else
         garage_door_led = 0;
-        
 }
 
 int main() {
@@ -232,13 +235,12 @@ int main() {
     heater_led = 0;
     aircon_led = 0;
     ultrasonic_distance = 0;
-    garage_mode = 0;
+    garage_mode = 1; //Garage door starts closed
     buzzer = 0.5;
     garage_opening_led = 0;
     garage_closing_led = 0;
     garage_door_led = 0;
-    garage_inc = 0; // Garage door starts closed
-    //For the water sensor
+    garage_inc = 0;
 
     
     
@@ -249,7 +251,6 @@ int main() {
             alarm();
             flood_detector();
             garage_door_opener();
-            phone_app();
         }
     }
     else

@@ -180,7 +180,7 @@ void garage_door_opener(){
     pc.printf("Distance = %ld cm\r\n", ultrasonic_distance);
     
     if((ultrasonic_distance < 50) && (garage_mode == 3))
-        garage_mode = 0; //switches mode to opening
+        garage_mode = 2; //switches mode to opening
     
     /*
     Opening: 

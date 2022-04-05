@@ -68,6 +68,12 @@ int alarm_iterator = 0;
 AnalogIn w_sensor(p20);
 float water_value;
 
+// For Phone App
+Serial device(p9, p10);
+char app_out;
+char app_in;
+char alarm_type;
+
 /*
 Alarm function: 
  Triggers an alarm. Any system that has an alarm uses this alarm
@@ -208,15 +214,43 @@ void garage_door_opener(){
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc == 100)
+    if(garage_inc == 100){
         garage_door_led = 1;
         garage_mode = 1;
-    else if(garage_inc == 0);
+        }
+    else if(garage_inc == 0){
         garage_door_led = 0;
         garage_mode = 0;
+        }
     else
         garage_door_led = 0;
         
+}
+
+void phone_app() {
+    if (device.readable()) {
+        app_out = device.getc();
+       // device.setc(app_in);
+    }
+
+    switch (app_out)
+    {
+    case '0': // openign garange o
+        garage_inc++;
+        garage_mode = 2;
+        break; // closing door
+    case '1':
+        garage_inc--;
+        garage_mode = 3;
+        break;
+    }
+
+    switch (alarm_type)
+    {
+    case 'F':
+        app_in = 'F';
+        break;
+    }
 }
 
 int main() {
@@ -254,11 +288,9 @@ int main() {
             alarm();
             flood_detector();
             garage_door_opener();
+            phone_app();
         }
     }
     else
         pc.printf("No DS1820 sensor found!\r\n");
 }
-
-
-

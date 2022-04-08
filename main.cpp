@@ -8,6 +8,9 @@ https://os.mbed.com/docs/mbed-os/v6.15/apis/timeout.html
 #include "mbed.h"
 #include "DS1820.h"
 #include "hcsr04.h"
+#include "Servo.h"
+#include <string> 
+
 /*
 Global modes of operation for the automated smart home.
 Mode 0: Normal Mode
@@ -16,7 +19,6 @@ Mode 2: Security Mode
 Mode 3: Fire Emergency Mode
 Mode 4: Flood Emergency Mode
 */
-int mode = 0;
 
 //For the automated garage door
 DigitalOut garage_opening_led(p25);
@@ -27,6 +29,7 @@ unsigned int ultrasonic_distance;
 int garage_mode;
 Timer garage_timer;
 int garage_inc;
+Servo garage_motor(p24);
 /*
 Mode 0: open
 Mode 1: closed
@@ -61,18 +64,41 @@ bool temp_conversion = false;
 PwmOut buzzer(p22);
 float freq[]= {659,440,659,440,659,440,659,440,659,440,659,440};
 Timer alarm_timer;
-bool alarm_trigger = false;
-int alarm_iterator = 0;
+bool alarm_trigger;
+int alarm_iterator;
 
 //For water sensor
 AnalogIn w_sensor(p20);
 float water_value;
+Timer flood_timer;
 
 // For Phone App
 Serial device(p9, p10);
 char app_out;
 char app_in;
 char alarm_type;
+/* 
+Alarm types:
+F for fire
+X for flood
+*/
+
+// Different modes our system operates in such as "security", "eco" and "fire"
+string system_mode;
+
+// Controls the servo motor to open the window
+Servo window_motor(p21);
+int window_position;
+string mode;
+ 
+void window_open(){
+    window_motor = 0.0;
+}
+
+void window_close(){
+    window_motor = 100.0;
+}
+
 
 /*
 Alarm function: 
@@ -91,10 +117,21 @@ void alarm(){
     if(alarm_trigger && (alarm_timer.read() > 0.5) && (alarm_iterator < 12)){
         buzzer.period(1/(2*freq[alarm_iterator]));
         alarm_iterator++;
-        alarm_timer.reset();
+        alarm_timer.reset(); 
     }
     else
         alarm_iterator = 0;
+}
+
+/*
+House lights
+*/
+void house_lighting_on(){
+    house_lights = 1;
+}
+
+void house_lighting_off(){
+    house_lights = 0;
 }
 
 /*
@@ -108,13 +145,13 @@ void pir_sensor(){
     it detects motion. 10 seconds without motion turns the lights off
     */
      if (pir){
-        house_lights = 1;
+        house_lighting_on();
         pir_timer.reset();
-        if(mode == 2)
+        if(system_mode == "security_mode")
             alarm_trigger = true;
      }
      else if(pir_timer.read() > 10)
-        house_lights = 0;     
+        house_lighting_off();    
 }
 
 /*
@@ -126,10 +163,12 @@ void smart_heating(){
     /* 
     This detects a fire. Right now it is set to detect a fire at 33 celsius 
     for testing purposes 
-    */   
-    if(temp > 33){
-        alarm_trigger = true;    
+    */    
+    if(temp > 32){
+        alarm_trigger = true;
+        alarm_type = 'F';   
     }
+    
     //The next two else ifs are to start gathering and reading the heat data from the ds1820
     else if(temp_timer > 7 && !temp_conversion){
         ds1820.startConversion();
@@ -175,18 +214,27 @@ Flood Detecting function:
  If water is detected it will sound an alarm
 */
 void flood_detector(){
-    water_value = w_sensor;
+    if(flood_timer > 20){
+        water_value = w_sensor;
+        flood_timer.reset(); 
+    }
+
     
-    if(water_value > 0.05)
+    if(water_value > 0.1){
+        pc.printf("FLOOD ALARM \r\n FLOOD ALARM \r\n FLOOD ALARM");  
         alarm_trigger = true;
+        alarm_type = 'X';
+    }
+        
+        
 }
 
 void garage_door_opener(){
     ultrasonic_distance = usensor.get_dist_cm();
-    pc.printf("Distance = %ld cm\r\n", ultrasonic_distance);
     
-    if((ultrasonic_distance < 50) && (garage_mode == 3))
-        garage_mode = 2; //switches mode to opening
+    
+    //if((ultrasonic_distance < 10) && (garage_mode == 3))
+        //garage_mode = 2; //switches mode to opening
     
     /*
     Opening: 
@@ -214,42 +262,64 @@ void garage_door_opener(){
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc == 100){
+    if(garage_inc >= 100){
         garage_door_led = 1;
         garage_mode = 1;
         }
-    else if(garage_inc == 0){
+    else if(garage_inc <= 0){
         garage_door_led = 0;
         garage_mode = 0;
         }
     else
         garage_door_led = 0;
-        
+    
+    garage_motor = (float) garage_inc/100; 
+    //pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
 }
 
 void phone_app() {
     if (device.readable()) {
         app_out = device.getc();
-       // device.setc(app_in);
+        device.putc(app_in);
+        pc.printf("app signal = %c, app input signal = %c water value = %f\n\r" ,app_out, app_in, water_value);
     }
 
-    switch (app_out)
-    {
-    case '0': // openign garange o
+    switch (app_out){
+    case '0': // Open Garage
         garage_inc++;
         garage_mode = 2;
-        break; // closing door
+        break; // Close Garage
     case '1':
         garage_inc--;
         garage_mode = 3;
+        break;
+    case '2': // Eco Mode On
+        // Eco logic here
+        break; 
+    case '3': // Eco Mode Off
+        // Eco logic here
+        break;
+    case '4': // Security Mode On
+        system_mode = "security";
+        house_lighting_off();
+        
+        //Windows close
+        break;
+    case '5': // Security Mode Off
+        // Security logic here
         break;
     }
 
     switch (alarm_type)
     {
-    case 'F':
+    case 'F': //Fire
         app_in = 'F';
         break;
+    case 'X': // flood
+        app_in = 'X';
+        break;
+    default: //default
+        app_in = 'O';
     }
 }
 
@@ -259,15 +329,20 @@ int main() {
     alarm_timer.start();
     heating_timer.start();
     garage_timer.start();
+    flood_timer.start();
     usensor.start();
+    window_position = 0;
     
+    system_mode = "resting";
+    alarm_trigger = false;
+    alarm_iterator = 0;
     pc.printf("\r\n--Starting--\r\n");
     /*
     This might be the only wait statement in the code.
     I am thinking that we might do a 60 second wait for bootup
     for the final implementation
     */
-    wait(20); // Wait for sensor to take snap shot of still room 
+    wait(2); // Wait for sensor to take snap shot of still room 
     house_lights = 0;
     heater_led = 0;
     aircon_led = 0;

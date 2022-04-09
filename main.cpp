@@ -188,7 +188,6 @@ void smart_heating(){
         }
         temp_conversion = false;
         temp_timer.reset();
-        led3 = !led3; // indicate update by blinking led
         
         /*
         This checks the heater every (supposed to be 300 seconds) 20 seconds
@@ -220,10 +219,10 @@ void flood_detector(){
     }
 
     
-    if(water_value > 0.1){
-        pc.printf("FLOOD ALARM \r\n FLOOD ALARM \r\n FLOOD ALARM");  
+    if(water_value > 0.01){
+        //pc.printf("FLOOD ALARM \r\n FLOOD ALARM \r\n FLOOD ALARM");  
         alarm_trigger = true;
-        alarm_type = 'X';
+        alarm_type = 'X';        
     }
         
         
@@ -331,8 +330,13 @@ void phone_app() {
             app_in = 'O';
         break;
     case 'X': // flood
-        app_in = 'X';
-        pc.printf("Flood detected \r\n");
+        if(phone_timer > 2){
+            phone_timer.reset();
+            app_in = 'X';
+            pc.printf("Flood detected \r\n");
+            }
+        else if(phone_timer > 1)
+            app_in = 'O';
         break;
     default: //default
         app_in = 'O';
@@ -372,7 +376,7 @@ int main() {
     garage_door_led = 0;
     garage_inc = 0;
     alarm_type = '9';
-    
+    Timer exit_timer;
     
     if (ds1820.begin()){
         while(1) {
@@ -382,6 +386,18 @@ int main() {
             flood_detector();
             garage_door_opener();
             phone_app();
+            
+            /*
+            If the house floods we want the system to power down, the exit will
+             turn off the mbed and connecting systems
+            */
+            if(alarm_type == 'X' && (exit_timer == 0)){
+                exit_timer.start();
+            }
+            else if(alarm_type == 'X' && (exit_timer >= 5)){
+                exit(0);
+            }
+                
         }
     }
     else

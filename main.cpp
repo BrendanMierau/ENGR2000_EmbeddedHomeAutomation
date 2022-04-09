@@ -144,7 +144,7 @@ void pir_sensor(){
     If the PIR detects motion it turns on the lights for 10 seconds every time 
     it detects motion. 10 seconds without motion turns the lights off
     */
-     if (pir){
+     if (pir && (system_mode != "eco_mode")){
         house_lighting_on();
         pir_timer.reset();
         if(system_mode == "security_mode")
@@ -164,7 +164,7 @@ void smart_heating(){
     This detects a fire. Right now it is set to detect a fire at 33 celsius 
     for testing purposes 
     */    
-    if(temp > 32){
+    if(temp > 33){
         alarm_trigger = true;
         alarm_type = 'F';   
     }
@@ -277,13 +277,17 @@ void garage_door_opener(){
     //pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
 }
 
+/*
+    This method is the interface between the MIT android application and our mbed
+*/
+Timer phone_timer;
+
 void phone_app() {
     if (device.readable()) {
         app_out = device.getc();
         device.putc(app_in);
         pc.printf("app signal = %c, app input signal = %c water value = %f\n\r" ,app_out, app_in, water_value);
     }
-
     switch (app_out){
     case '0': // Open Garage
         garage_inc++;
@@ -294,33 +298,46 @@ void phone_app() {
         garage_mode = 3;
         break;
     case '2': // Eco Mode On
-        // Eco logic here
+        window_open();
+        house_lighting_off();
+        system_mode = "eco_mode";
+        pc.printf("eco mode activated \r\n");
         break; 
-    case '3': // Eco Mode Off
-        // Eco logic here
+    case '4': // Eco Mode Off
+        window_close();
+        system_mode = "resting";
+        pc.printf("eco mode deactivated \r\n");
         break;
-    case '4': // Security Mode On
+    case '6': // Security Mode On
         system_mode = "security";
         house_lighting_off();
-        
-        //Windows close
+        window_close();
+        pc.printf("Security Activated \r\n");
         break;
-    case '5': // Security Mode Off
-        // Security logic here
+    case '7': // Security Mode Off
+        system_mode = "resting";
+        pc.printf("Security Deactivated \r\n");
         break;
     }
-
     switch (alarm_type)
     {
     case 'F': //Fire
-        app_in = 'F';
+        if(phone_timer > 60){
+            phone_timer.reset();
+            app_in = 'F';
+            pc.printf("Fire detected \r\n");
+            }
+        else if(phone_timer > 1)
+            app_in = 'O';
         break;
     case 'X': // flood
         app_in = 'X';
+        pc.printf("Flood detected \r\n");
         break;
     default: //default
         app_in = 'O';
     }
+    
 }
 
 int main() {
@@ -330,6 +347,7 @@ int main() {
     heating_timer.start();
     garage_timer.start();
     flood_timer.start();
+    phone_timer.start();
     usensor.start();
     window_position = 0;
     
@@ -353,7 +371,7 @@ int main() {
     garage_closing_led = 0;
     garage_door_led = 0;
     garage_inc = 0;
-
+    alarm_type = '9';
     
     
     if (ds1820.begin()){

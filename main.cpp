@@ -38,7 +38,7 @@ Mode 3: closing
 */
 
 //For the PIR Motion sensor
-DigitalOut house_lights(p15);
+DigitalOut house_lights(p19);
 DigitalIn pir(p5);
 Timer pir_timer;
 
@@ -147,11 +147,13 @@ void pir_sensor(){
      if (pir && (system_mode != "eco_mode")){
         house_lighting_on();
         pir_timer.reset();
+        pc.printf("PIR sensor works \r\n");
         if(system_mode == "security_mode")
             alarm_trigger = true;
      }
      else if(pir_timer.read() > 10)
-        house_lighting_off();    
+        house_lighting_off();
+            
 }
 
 /*
@@ -285,7 +287,7 @@ void phone_app() {
     if (device.readable()) {
         app_out = device.getc();
         device.putc(app_in);
-        pc.printf("app signal = %c, app input signal = %c water value = %f\n\r" ,app_out, app_in, water_value);
+        pc.printf("app signal = %c, app input signal = %c water value = %f\n\r, system mode = " ,app_out, app_in, water_value);
     }
     switch (app_out){
     case '0': // Open Garage
@@ -298,7 +300,7 @@ void phone_app() {
         break;
     case '2': // Eco Mode On
         window_open();
-        house_lighting_off();
+        //house_lighting_off();
         system_mode = "eco_mode";
         pc.printf("eco mode activated \r\n");
         break; 
@@ -309,7 +311,7 @@ void phone_app() {
         break;
     case '6': // Security Mode On
         system_mode = "security";
-        house_lighting_off();
+        //house_lighting_off();
         window_close();
         pc.printf("Security Activated \r\n");
         break;

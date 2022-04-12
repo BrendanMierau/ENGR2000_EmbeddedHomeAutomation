@@ -150,7 +150,10 @@ void pir_sensor(){
     If the PIR detects motion it turns on the lights for 10 seconds every time 
     it detects motion. 10 seconds without motion turns the lights off
     */
-     if (pir && (system_mode != "eco_mode")){
+    if(pir && garage_mode == 3){
+        garage_mode = 2;
+    }
+    if (pir && (system_mode != "eco_mode")){
         house_lighting_on();
         pir_timer.reset();
         //pc.printf("PIR sensor works \r\n");
@@ -174,7 +177,7 @@ void smart_heating(){
     This detects a fire. Right now it is set to detect a fire at 33 celsius 
     for testing purposes 
     */    
-    if(temp > 33){
+    if(temp > 30){
         alarm_trigger = true;
         alarm_type = 'F';
         door_unlock();
@@ -211,13 +214,13 @@ void smart_heating(){
             heater_led = 0;    
         }
         else if(heating_timer.read() > 20){
-            if(temp > 29)
+            if(temp > 27)
                 aircon_led = 1;
-            else if(temp < 29)
+            else if(temp < 27)
                 aircon_led = 0;
-            if(temp < 27)
+            if(temp < 24)
                 heater_led = 1;
-            else if(temp > 27)
+            else if(temp > 24)
                 heater_led = 0;   
         }  
     }
@@ -243,8 +246,12 @@ void flood_detector(){
         
 }
 
+Timer ultrasonic_timer;
 void garage_door_opener(){
-    ultrasonic_distance = usensor.get_dist_cm();
+    if(ultrasonic_timer == 1){
+            ultrasonic_distance = usensor.get_dist_cm();
+            ultrasonic_timer.reset();
+    }
     //if((ultrasonic_distance < 10) && (garage_mode == 3))
         //garage_mode = 2; //switches mode to opening
     
@@ -275,11 +282,11 @@ void garage_door_opener(){
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc <= 0){
+    if(garage_inc <= 2){
         garage_door_led = 1;
         garage_mode = 1;
         }
-    else if(garage_inc >= 100){
+    else if(garage_inc >= 98){
         garage_door_led = 0;
         garage_mode = 0;
         }
@@ -287,7 +294,8 @@ void garage_door_opener(){
         garage_door_led = 0;
     
     garage_motor = (float) garage_inc/100; 
-    pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
+    pc.printf("garage motor = %i, Distance = %ld cm, Temperature= %3.1f C\r\n" 
+        ,garage_inc, ultrasonic_distance, temp);
 }
 
 /*
@@ -339,6 +347,7 @@ void phone_app() {
         system_mode = "resting";
         door_unlock();
         pc.printf("Security Deactivated \r\n");
+        alarm_trigger = false;
         break;
     }
     switch (alarm_type)
@@ -384,6 +393,7 @@ int main() {
     garage_timer.start();
     flood_timer.start();
     phone_timer.start();
+    ultrasonic_timer.start();
     usensor.start();
     window_position = 0.0;
     doorlock = 1;

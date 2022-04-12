@@ -92,11 +92,11 @@ int window_position;
 string mode;
  
 void window_open(){
-    window_motor = 0.0;
+    window_motor = 100.0;
 }
 
 void window_close(){
-    window_motor = 100.0;
+    window_motor = 0.0;
 }
 
 
@@ -147,11 +147,11 @@ void pir_sensor(){
      if (pir && (system_mode != "eco_mode")){
         house_lighting_on();
         pir_timer.reset();
-        pc.printf("PIR sensor works \r\n");
+        //pc.printf("PIR sensor works \r\n");
         if(system_mode == "security_mode")
             alarm_trigger = true;
      }
-     else if(pir_timer.read() > 10)
+     else if(pir_timer.read() > 10 || (system_mode == "eco_mode"))
         house_lighting_off();
             
 }
@@ -243,8 +243,9 @@ void garage_door_opener(){
     Checks timer so it can increment every 0.1 seconds
     Checks garage inc to simulate the servo motor going in increments of 1
     */
-    if((garage_mode == 2) && (garage_timer > 0.1) && (garage_inc < 100)){
-        garage_inc++;
+    if((garage_mode == 2) && (garage_timer > 0.1) && (garage_inc > 2)){
+        
+        garage_inc = garage_inc -3;
         garage_opening_led = !garage_opening_led;
         garage_closing_led = 0;
         garage_timer.reset();
@@ -255,19 +256,19 @@ void garage_door_opener(){
     Checks timer so it can increment every 0.1 seconds
     Checks garage inc to simulate the servo motor going in increments of 1
     */ 
-    else if((garage_mode == 3) && (garage_timer > 0.1) && (garage_inc > 0)){
-        garage_inc--;
+    else if((garage_mode == 3) && (garage_timer > 0.1) && (garage_inc < 97)){
+        garage_inc = garage_inc + 3;
         garage_opening_led = 0;
         garage_closing_led = !garage_closing_led;
         garage_timer.reset();
     } 
     
     //This led just shows if the door is open or closed
-    if(garage_inc >= 100){
+    if(garage_inc <= 0){
         garage_door_led = 1;
         garage_mode = 1;
         }
-    else if(garage_inc <= 0){
+    else if(garage_inc >= 100){
         garage_door_led = 0;
         garage_mode = 0;
         }
@@ -275,7 +276,7 @@ void garage_door_opener(){
         garage_door_led = 0;
     
     garage_motor = (float) garage_inc/100; 
-    //pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
+    pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
 }
 
 /*
@@ -291,16 +292,17 @@ void phone_app() {
     }
     switch (app_out){
     case '0': // Open Garage
-        garage_inc++;
+        if(garage_inc >= 100)
+            garage_inc--;
         garage_mode = 2;
         break; // Close Garage
     case '1':
-        garage_inc--;
+        garage_inc++;
         garage_mode = 3;
         break;
     case '2': // Eco Mode On
         window_open();
-        //house_lighting_off();
+        house_lighting_off();
         system_mode = "eco_mode";
         pc.printf("eco mode activated \r\n");
         break; 
@@ -311,7 +313,7 @@ void phone_app() {
         break;
     case '6': // Security Mode On
         system_mode = "security";
-        //house_lighting_off();
+        house_lighting_off();
         window_close();
         pc.printf("Security Activated \r\n");
         break;
@@ -355,7 +357,7 @@ int main() {
     flood_timer.start();
     phone_timer.start();
     usensor.start();
-    window_position = 0;
+    window_position = 100.0;
     
     system_mode = "resting";
     alarm_trigger = false;
@@ -376,7 +378,7 @@ int main() {
     garage_opening_led = 0;
     garage_closing_led = 0;
     garage_door_led = 0;
-    garage_inc = 0;
+    garage_inc = 100;
     alarm_type = '9';
     Timer exit_timer;
     

@@ -86,6 +86,12 @@ X for flood
 // Different modes our system operates in such as "security", "eco" and "fire"
 string system_mode;
 
+// Door controls
+DigitalOut doorlock(p12);
+
+void door_lock(){doorlock = 1;}
+void door_unlock(){doorlock = 0;}
+
 // Controls the servo motor to open the window
 Servo window_motor(p21);
 int window_position;
@@ -98,7 +104,6 @@ void window_open(){
 void window_close(){
     window_motor = 0.0;
 }
-
 
 /*
 Alarm function: 
@@ -118,6 +123,7 @@ void alarm(){
         buzzer.period(1/(2*freq[alarm_iterator]));
         alarm_iterator++;
         alarm_timer.reset(); 
+        pc.printf("intruder");
     }
     else
         alarm_iterator = 0;
@@ -148,8 +154,10 @@ void pir_sensor(){
         house_lighting_on();
         pir_timer.reset();
         //pc.printf("PIR sensor works \r\n");
-        if(system_mode == "security_mode")
+        if(system_mode == "security_mode"){
             alarm_trigger = true;
+            alarm_type = 'S';   
+        }
      }
      else if(pir_timer.read() > 10 || (system_mode == "eco_mode"))
         house_lighting_off();
@@ -276,7 +284,7 @@ void garage_door_opener(){
         garage_door_led = 0;
     
     garage_motor = (float) garage_inc/100; 
-    pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
+    //pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
 }
 
 /*
@@ -306,19 +314,27 @@ void phone_app() {
         system_mode = "eco_mode";
         pc.printf("eco mode activated \r\n");
         break; 
+    case '3': // Lock door 
+            door_lock();
+        break;
     case '4': // Eco Mode Off
         window_close();
         system_mode = "resting";
         pc.printf("eco mode deactivated \r\n");
         break;
+    case '5': // Unlock door
+        door_unlock();
+        break;
     case '6': // Security Mode On
-        system_mode = "security";
+        system_mode = "security_mode";
         house_lighting_off();
         window_close();
+        door_lock();
         pc.printf("Security Activated \r\n");
         break;
     case '7': // Security Mode Off
         system_mode = "resting";
+        door_unlock();
         pc.printf("Security Deactivated \r\n");
         break;
     }
@@ -342,6 +358,15 @@ void phone_app() {
         else if(phone_timer > 1)
             app_in = 'O';
         break;
+    case 'S': // flood
+        if(phone_timer > 60){
+            phone_timer.reset();
+            app_in = 'S';
+            pc.printf("security detected \r\n");
+            }
+        else if(phone_timer > 1)
+            app_in = 'O';
+        break;
     default: //default
         app_in = 'O';
     }
@@ -358,6 +383,7 @@ int main() {
     phone_timer.start();
     usensor.start();
     window_position = 100.0;
+    door_lock();
     
     system_mode = "resting";
     alarm_trigger = false;

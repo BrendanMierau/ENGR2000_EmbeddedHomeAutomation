@@ -1,4 +1,4 @@
-/*
+ /*
 Use this website for reference with asynchronous timers 
 https://os.mbed.com/teams/TVZ-Mechatronics-Team/wiki/Timers-interrupts-and-tasks
 and
@@ -24,7 +24,7 @@ Mode 4: Flood Emergency Mode
 DigitalOut garage_opening_led(p25);
 DigitalOut garage_closing_led(p26);
 DigitalOut garage_door_led(p27);
-HCSR04 usensor(p7,p8);
+HCSR04 usensor(p29,p30);
 unsigned int ultrasonic_distance;
 int garage_mode;
 Timer garage_timer;
@@ -44,7 +44,6 @@ Timer pir_timer;
 
 
 //For the Smart Temperature control
-DigitalOut led3(LED3);
 DigitalOut heater_led(p7);
 DigitalOut aircon_led(p8);
 DS1820 ds1820(p6); // mbed pin name connected to module
@@ -124,6 +123,7 @@ void alarm(){
         alarm_iterator++;
         alarm_timer.reset(); 
         pc.printf("intruder");
+        system_mode = "resting";
     }
     else
         alarm_iterator = 0;
@@ -176,7 +176,8 @@ void smart_heating(){
     */    
     if(temp > 33){
         alarm_trigger = true;
-        alarm_type = 'F';   
+        alarm_type = 'F';
+        door_unlock();
     }
     
     //The next two else ifs are to start gathering and reading the heat data from the ds1820
@@ -205,7 +206,11 @@ void smart_heating(){
         to reach the desired temperature range
         */
         
-        if(heating_timer.read() > 20){
+        if(system_mode == "eco_mode"){
+            aircon_led = 0;
+            heater_led = 0;    
+        }
+        else if(heating_timer.read() > 20){
             if(temp > 29)
                 aircon_led = 1;
             else if(temp < 29)
@@ -240,8 +245,6 @@ void flood_detector(){
 
 void garage_door_opener(){
     ultrasonic_distance = usensor.get_dist_cm();
-    
-    
     //if((ultrasonic_distance < 10) && (garage_mode == 3))
         //garage_mode = 2; //switches mode to opening
     
@@ -284,7 +287,7 @@ void garage_door_opener(){
         garage_door_led = 0;
     
     garage_motor = (float) garage_inc/100; 
-    //pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
+    pc.printf("garage motor = %i, Distance = %ld cm \n\r" ,garage_inc, ultrasonic_distance);
 }
 
 /*
@@ -358,11 +361,11 @@ void phone_app() {
         else if(phone_timer > 1)
             app_in = 'O';
         break;
-    case 'S': // intruder
+    case 'S': // flood
         if(phone_timer > 60){
             phone_timer.reset();
             app_in = 'S';
-            pc.printf("intruder detected \r\n");
+            pc.printf("security detected \r\n");
             }
         else if(phone_timer > 1)
             app_in = 'O';
@@ -383,7 +386,7 @@ int main() {
     phone_timer.start();
     usensor.start();
     window_position = 0.0;
-    door_lock();
+    doorlock = 1;
     
     system_mode = "resting";
     alarm_trigger = false;
@@ -425,6 +428,10 @@ int main() {
                 exit_timer.start();
             }
             else if(alarm_type == 'X' && (exit_timer >= 5)){
+                aircon_led = 0;
+                heater_led = 0;
+                doorlock = 0;
+                house_lighting_off();
                 exit(0);
             }
                 

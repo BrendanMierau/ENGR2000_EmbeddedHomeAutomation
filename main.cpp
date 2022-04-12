@@ -358,11 +358,11 @@ void phone_app() {
         else if(phone_timer > 1)
             app_in = 'O';
         break;
-    case 'S': // flood
+    case 'S': // intruder
         if(phone_timer > 60){
             phone_timer.reset();
             app_in = 'S';
-            pc.printf("security detected \r\n");
+            pc.printf("intruder detected \r\n");
             }
         else if(phone_timer > 1)
             app_in = 'O';
@@ -382,7 +382,7 @@ int main() {
     flood_timer.start();
     phone_timer.start();
     usensor.start();
-    window_position = 100.0;
+    window_position = 0.0;
     door_lock();
     
     system_mode = "resting";
